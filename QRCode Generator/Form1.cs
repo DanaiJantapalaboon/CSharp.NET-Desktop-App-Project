@@ -2,13 +2,12 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Data.SqlClient;
+using System.Data.SQLite;
 using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
 
 namespace QRCode_Generator
 {
@@ -22,21 +21,25 @@ namespace QRCode_Generator
         private void Form1_Load(object sender, EventArgs e)
         {
             updateGridView();
+            this.Size = Screen.PrimaryScreen.WorkingArea.Size;
         }
 
-        MySqlConnection connect = new MySqlConnection("host = localhost; user = root; password = 1234; database = qrcodegen");
-        MySqlCommand command;
+        private static string dbPath = @"data source = qrdb.db";
 
         private void updateGridView()
         {
             try
             {
-                string viewData = "SELECT * FROM qrcodegen.tblqrgen";
-                MySqlDataAdapter adapter = new MySqlDataAdapter(viewData, connect);
+                SQLiteConnection con = new SQLiteConnection(dbPath);
+                con.Open();
 
-                DataTable table = new DataTable();
-                adapter.Fill(table);
-                dataGridView1.DataSource = table;
+                string viewData = "SELECT * FROM QRlogs";
+                SQLiteCommand cmd = new SQLiteCommand(viewData, con);
+                SQLiteDataAdapter adapter = new SQLiteDataAdapter(cmd);
+
+                DataTable dt = new DataTable();
+                adapter.Fill(dt);
+                dataGridView1.DataSource = dt;
             }
             catch
             {
@@ -50,14 +53,16 @@ namespace QRCode_Generator
         {
             try
             {
-                connect.Open();
-                command = new MySqlCommand(query, connect);
+                SQLiteConnection con = new SQLiteConnection(dbPath);
+                con.Open();
+                SQLiteCommand cmd = new SQLiteCommand(query, con);
 
-                if (command.ExecuteNonQuery() == 1)
+                if (cmd.ExecuteNonQuery() == 1)
                 {
                     inputQR.Clear();
                     txtNote.Clear();
                 }
+                con.Close();
             }
             catch (Exception e)
             {
@@ -65,7 +70,7 @@ namespace QRCode_Generator
             }
             finally
             {
-                connect.Close();
+                //con.Close();
             }
         }
 
@@ -74,32 +79,42 @@ namespace QRCode_Generator
             DateTime myDateTime = dateTimePicker1.Value;
             string sqlDate = myDateTime.ToString("yyyy-MM-dd");
 
-            string save = "INSERT INTO qrcodegen.tblqrgen (date, Note, Link) " +
+            string save = "INSERT INTO QRlogs (date, Keyword, Link) " +
                           "VALUES ('" + sqlDate + "', '" + txtNote.Text + "', '" + inputQR.Text + "')";
 
             executeQuery(save);
             updateGridView();
         }
 
-        private void saveHistory_Click(object sender, EventArgs e)
-        {
-            saveData();
-        }
-        private void saveDataToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            saveData();
-        }
-
         private void generateQR_Click(object sender, EventArgs e)
         {
-            Zen.Barcode.CodeQrBarcodeDraw qrCode = Zen.Barcode.BarcodeDrawFactory.CodeQr;
-            QRBox.Image = qrCode.Draw(inputQR.Text, 50);
+            try
+            {
+                Zen.Barcode.CodeQrBarcodeDraw qrCode = Zen.Barcode.BarcodeDrawFactory.CodeQr;
+                QRBox.Image = qrCode.Draw(inputQR.Text, 50);
+
+                if (inputQR.Text != "")
+                {
+                    saveData();
+                }
+                else
+                {
+                    MessageBox.Show("กรุณากรอกข้อมูลลงในช่อง Input", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch
+            {
+                MessageBox.Show("ข้อมูล Input ต้องไม่เกิน 122 ตัวอักษร\n" +
+                                "เป็นข้อจำกัดของตัวเฟรมเวิร์คจ้าา (QRCode Version 7)", "Error",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            string resultText = "C# using Zen.Barcode.Rendering.Framework -Version 3.1.10729.1\nUI Designed & Programming by Danai J.";
-            MessageBox.Show(resultText, "About QR Code Generator v1.01");
+            string resultText = "Sodsaisoft Free QRCode Generator - Version 1.02b\n\n" +
+                                "QRCode Engine : Zen.Barcode.Rendering.Framework Version 3.1.10729.1\nDatabase : SQLite Version 3.12.2\n---------------------------------------------------\nProgrammer : Danai Jantapalaboon\nTester : Thittiya Pattaramitpakin\nProject Manager : Sutthipong Kawichai\n---------------------------------------------------\nโปรแกรมแจกฟรี ห้ามจำหน่าย\n12 มกราคม 2566\nwww.sodsaisoft.com";
+            MessageBox.Show(resultText, "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         //โค้ด Save Image จาก pictureBox
@@ -134,74 +149,95 @@ namespace QRCode_Generator
             }
         }
 
-        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            DialogResult dialog = new DialogResult();
-            dialog = MessageBox.Show("Do you want to exit?", "QR Code Generator", MessageBoxButtons.OKCancel);
-            if (dialog == DialogResult.OK)
-            {
-                Application.Exit();
-            }
-        }
-
         private void clear_Click(object sender, EventArgs e)
         {
             inputQR.Clear();
             txtNote.Clear();
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            string searchValue = txtidSearch.Text;
-            dataGridView1.ClearSelection();
-
-            try
-            {
-                bool valueResult = false;
-                foreach (DataGridViewRow row in dataGridView1.Rows)
-                {
-                    for (int i = 0; i < row.Cells.Count; i++)
-                    {
-                        if (row.Cells[i].Value != null && row.Cells[i].Value.ToString().Equals(searchValue))
-                        {
-                            int rowIndex = row.Index;
-                            dataGridView1.Rows[rowIndex].Selected = true;
-                            valueResult = true;
-                            txtidSearch.Clear();
-                            break;
-                        }
-                    }
-                }
-                if (!valueResult)
-                {
-                    MessageBox.Show("Unable to find " + txtidSearch.Text, "Not Found");
-                    return;
-                }
-            }
-            catch (Exception exc)
-            {
-                MessageBox.Show(exc.Message);
-            }
-        }
 
         private void dataGridView1_MouseClick(object sender, MouseEventArgs e)
         {
-            txtidSearch.Text = dataGridView1.CurrentRow.Cells[0].Value.ToString();
-            dateTimePicker1.Text = dataGridView1.CurrentRow.Cells[1].Value.ToString();
-            txtNote.Text = dataGridView1.CurrentRow.Cells[2].Value.ToString();
-            inputQR.Text = dataGridView1.CurrentRow.Cells[3].Value.ToString();
+            if (dataGridView1.SelectedRows.Count > 0)
+            {
+                dateTimePicker1.Text = dataGridView1.CurrentRow.Cells[1].Value + string.Empty;
+                txtNote.Text = dataGridView1.CurrentRow.Cells[2].Value + string.Empty;
+                inputQR.Text = dataGridView1.CurrentRow.Cells[3].Value + string.Empty;
+            }
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            string delete = "DELETE FROM qrcodegen.tblqrgen WHERE id = '"+ txtidSearch.Text +"'";
-            executeQuery(delete);
-            updateGridView();
+            try
+            {
+                string txtidSearch = dataGridView1.CurrentRow.Cells[0].Value.ToString();
+                string delete = "DELETE FROM QRlogs WHERE id = '" + txtidSearch + "'";
+
+                //DialogResult dialog = new DialogResult();
+                DialogResult dialog = MessageBox.Show("คุณต้องการลบรายการบันทึกหรือไม่",
+                                                      "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (dialog == DialogResult.Yes)
+                {
+                    executeQuery(delete);
+                }
+
+                updateGridView();
+
+            }
+            catch
+            {
+                MessageBox.Show("ไม่พบข้อมูลในตาราง", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void btnRefresh_Click(object sender, EventArgs e)
         {
             updateGridView();
+        }
+
+        private void exitToolStripMenuItem_Click_1(object sender, EventArgs e)
+        {
+            //DialogResult dialog = new DialogResult();
+
+            DialogResult dialog = MessageBox.Show("คุณต้องการออกจากโปรแกรมหรือไม่", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (dialog == DialogResult.Yes)
+            {
+                System.Environment.Exit(1);
+            }
+        }
+
+        private void textBoxSearch_TextChanged(object sender, EventArgs e)
+        {
+            SQLiteConnection con = new SQLiteConnection(dbPath);
+            con.Open();
+
+            string viewData = "SELECT * FROM QRlogs";
+            SQLiteCommand cmd = new SQLiteCommand(viewData, con);
+            SQLiteDataAdapter adapter = new SQLiteDataAdapter(cmd);
+
+            DataTable dataTable = new DataTable();
+            adapter.Fill(dataTable);
+            dataGridView1.DataSource = dataTable;
+
+            string searchValue = textBoxSearch.Text;
+            try
+            {
+                var re = from row in dataTable.AsEnumerable()
+                         where row[2].ToString().Contains(searchValue)
+                         select row;
+                if (re.Count() == 0)
+                {
+                    //MessageBox.Show("ไม่พบข้อความที่ท่านค้นหา", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                else
+                {
+                    dataGridView1.DataSource = re.CopyToDataTable();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
     }
 }
