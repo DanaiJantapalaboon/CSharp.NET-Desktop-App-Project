@@ -1,4 +1,4 @@
-﻿
+
 namespace QRCode_Generator
 {
     partial class Form1
