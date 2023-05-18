@@ -40,6 +40,7 @@ namespace QRCode_Generator
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
                 dataGridView1.DataSource = dt;
+                dataGridView1.Columns[0].Visible = false;  // Hide id column
             }
             catch
             {
@@ -113,7 +114,7 @@ namespace QRCode_Generator
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
         {
             string resultText = "Sodsaisoft Free QRCode Generator - Version 1.02b\n\n" +
-                                "QRCode Engine : Zen.Barcode.Rendering.Framework Version 3.1.10729.1\nDatabase : SQLite Version 3.12.2\n---------------------------------------------------\nProgrammer : Danai Jantapalaboon\nTester : Thittiya Pattaramitpakin\nProject Manager : Sutthipong Kawichai\n---------------------------------------------------\nโปรแกรมแจกฟรี ห้ามจำหน่าย\n12 มกราคม 2566\nwww.sodsaisoft.com";
+                                "QRCode Engine : Zen.Barcode.Rendering.Framework Version 3.1.10729.1\nDatabase : SQLite Version 3.12.2\nDeveloper : Danai Jantapalaboon\n---------------------------------------------------\nโปรแกรมแจกฟรี ห้ามจำหน่าย\n18 พฤษภาคม 2566\nwww.sodsaisoft.com";
             MessageBox.Show(resultText, "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
